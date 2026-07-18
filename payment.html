@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wallet - FireZone</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore-compat.js"></script>
+</head>
+<body class="bg-slate-950 text-white pb-12 font-sans selection:bg-orange-500 selection:text-white">
+
+    <div class="max-w-md mx-auto p-6">
+        <!-- Header -->
+        <div class="flex items-center gap-4 mb-6">
+            <button onclick="window.location.href='home.html'" class="bg-slate-900 hover:bg-slate-800 p-3 rounded-2xl border border-slate-800 transition-all active:scale-90">
+                <i class="fa-solid fa-arrow-left text-orange-500"></i>
+            </button>
+            <h2 class="text-xl font-black italic tracking-wide uppercase">My Wallet</h2>
+        </div>
+
+        <!-- Modern Tabs (Add / Withdraw) -->
+        <div class="flex bg-slate-900 p-1.5 rounded-2xl mb-6 border border-slate-800">
+            <button onclick="switchTab('add')" id="tabAdd" class="flex-1 py-3 rounded-xl font-black text-xs tracking-wider uppercase transition-all bg-orange-600 text-white shadow-lg shadow-orange-600/20">
+                <i class="fa-solid fa-wallet mr-1.5"></i> Add Money
+            </button>
+            <button onclick="switchTab('withdraw')" id="tabWithdraw" class="flex-1 py-3 rounded-xl font-black text-xs tracking-wider uppercase transition-all text-gray-400 hover:text-gray-200">
+                <i class="fa-solid fa-money-bill-transfer mr-1.5"></i> Withdraw
+            </button>
+        </div>
+
+        <!-- ================= ADD MONEY SECTION ================= -->
+        <div id="addSection" class="space-y-6">
+            <!-- Input Amount -->
+            <div class="bg-slate-900 p-6 rounded-3xl border border-slate-850 shadow-xl text-center">
+                <p class="text-[10px] text-gray-500 uppercase font-black mb-3 tracking-widest">पैसे लिखें (₹)</p>
+                <!-- सुरक्षित इनिशियलाइज़ेशन के लिए डिफ़ॉल्ट रूप से डिसेबल रहेगा -->
+                <input type="number" id="amt" placeholder="लोड हो रहा है..." disabled oninput="genQR()" class="w-full bg-transparent text-center text-5xl font-black text-orange-500 outline-none placeholder-gray-800 disabled:opacity-50 disabled:text-xl">
+            </div>
+
+            <!-- QR Code and Pay Button Display -->
+            <div id="qrBox" class="hidden animate-in fade-in zoom-in duration-300 text-center">
+                <div class="bg-white p-4 rounded-3xl inline-block mb-3 shadow-2xl border-4 border-orange-500/20">
+                    <img id="qrImg" src="" class="w-48 h-48 rounded-xl">
+                </div>
+                <p class="text-[10px] text-gray-500 mb-4 font-black uppercase tracking-wider">ऊपर दिए गए QR कोड को स्कैन करें</p>
+
+                <!-- Direct Pay Button for Mobile Users -->
+                <a id="upiPayBtn" href="#" class="inline-flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-500 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-wider shadow-lg shadow-green-600/20 active:scale-95 transition-all mb-4">
+                    <i class="fa-solid fa-mobile-screen-button"></i> Pay with UPI App
+                </a>
+            </div>
+
+            <!-- Screenshot Upload -->
+            <div class="bg-slate-900 p-5 rounded-3xl border border-slate-850 shadow-xl">
+                <label class="text-[10px] text-gray-500 font-black uppercase mb-3 block tracking-widest">पेमेंट स्क्रीनशॉट अपलोड करें</label>
+                <div class="relative flex items-center justify-between border border-dashed border-slate-800 rounded-2xl p-3 bg-slate-950/40">
+                    <input type="file" id="fileInput" accept="image/*" class="text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-orange-600/20 file:text-orange-500 hover:file:bg-orange-600 hover:file:text-white file:transition-all">
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <button id="subBtn" onclick="submitPayment()" class="w-full bg-orange-600 py-4 rounded-2xl font-black text-sm uppercase tracking-wider shadow-lg shadow-orange-600/30 active:scale-[0.98] transition-all">
+                सबमिट पेमेंट रिक्वेस्ट
+            </button>
+        </div>
+
+        <!-- ================= WITHDRAW SECTION ================= -->
+        <div id="withdrawSection" class="hidden space-y-6">
+            <div class="bg-slate-900 p-6 rounded-3xl border border-slate-850 shadow-xl space-y-4">
+                <!-- Amount to Withdraw -->
+                <div>
+                    <label class="text-[10px] text-gray-500 font-black uppercase mb-2 block tracking-widest">निकासी राशि (₹)</label>
+                    <input type="number" id="wAmount" placeholder="Min. ₹50" class="w-full bg-slate-950 border border-slate-850 rounded-2xl p-4 text-sm font-bold text-white focus:border-orange-500 outline-none">
+                </div>
+
+                <!-- UPI ID -->
+                <div>
+                    <label class="text-[10px] text-gray-500 font-black uppercase mb-2 block tracking-widest">अपनी UPI ID</label>
+                    <input type="text" id="wUpi" placeholder="example@upi" class="w-full bg-slate-950 border border-slate-850 rounded-2xl p-4 text-sm font-bold text-white focus:border-orange-500 outline-none">
+                </div>
+
+                <!-- Mobile Number -->
+                <div>
+                    <label class="text-[10px] text-gray-500 font-black uppercase mb-2 block tracking-widest">फ़ोन नंबर (Paytm/PhonePe)</label>
+                    <input type="number" id="wPhone" placeholder="10 अंकों का नंबर" class="w-full bg-slate-950 border border-slate-850 rounded-2xl p-4 text-sm font-bold text-white focus:border-orange-500 outline-none">
+                </div>
+            </div>
+
+            <div class="p-4 bg-orange-600/10 border border-orange-500/20 rounded-2xl flex items-center gap-3">
+                <i class="fa-solid fa-circle-info text-orange-500 text-sm"></i>
+                <p class="text-[10px] font-bold text-gray-400 leading-normal">अनुरोध सबमिट करने के 24 घंटे के भीतर आपका भुगतान आपके दिए गए अकाउंट में भेज दिया जाएगा।</p>
+            </div>
+
+            <!-- Submit Withdraw -->
+            <button id="wSubBtn" onclick="submitWithdraw()" class="w-full bg-orange-600 py-4 rounded-2xl font-black text-sm uppercase tracking-wider shadow-lg shadow-orange-600/30 active:scale-[0.98] transition-all">
+                सबमिट विड्रॉ रिक्वेस्ट
+            </button>
+        </div>
+
+        <p id="status" class="mt-4 text-center text-xs text-gray-500 font-bold uppercase tracking-wider"></p>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyC8NQ_bmJl-qRy0H_AzJ968bWwzhwMAsGw",
+            authDomain: "firezone-a0a02.firebaseapp.com",
+            projectId: "firezone-a0a02",
+            storageBucket: "firezone-a0a02.firebasestorage.app",
+            messagingSenderId: "1068854164782",
+            appId: "1:1068854164782:web:8a627cdf687583debecebf"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // डैनामिक UPI ID स्टोर करने के लिए वेरिएबल (हार्डकोडेड स्ट्रिंग हटा दी गई है)
+        let myUPI = ""; 
+
+        // ऑथ सुरक्षा जाँच और एडमिन सेटिंग्स से डायनामिक UPI लोड करना
+        firebase.auth().onAuthStateChanged(user => {
+            if (!user) {
+                window.location.href = "index.html";
+            } else {
+                loadAdminUPI();
+            }
+        });
+
+        // डैशबोर्ड से सेट की गई UPI ID को फ़ेच करने का फ़ंक्शन
+        function loadAdminUPI() {
+            db.collection("settings").doc("appData").get()
+            .then(doc => {
+                if(doc.exists && doc.data().upiId) {
+                    myUPI = doc.data().upiId.trim();
+                    
+                    // इनपुट फ़ील्ड को एक्टिव करें और प्लेसहोल्डर सामान्य करें
+                    const amtInput = document.getElementById('amt');
+                    amtInput.disabled = false;
+                    amtInput.placeholder = "0";
+                } else {
+                    console.error("डेटाबेस में UPI ID सेट नहीं है!");
+                    alert("तकनीकी समस्या: एडमिन पेमेंट गेटवे अभी सक्रिय नहीं है।");
+                }
+            })
+            .catch(error => {
+                console.error("UPI ID लोड करने में त्रुटि: ", error);
+                alert("पेमेंट सिस्टम लोड करने में असमर्थ।");
+            });
+        }
+
+        // टैब स्विचिंग फ़ंक्शन
+        function switchTab(tab) {
+            const tabAdd = document.getElementById('tabAdd');
+            const tabWithdraw = document.getElementById('tabWithdraw');
+            const addSection = document.getElementById('addSection');
+            const withdrawSection = document.getElementById('withdrawSection');
+            const status = document.getElementById('status');
+
+            status.innerText = "";
+
+            if (tab === 'add') {
+                tabAdd.className = "flex-1 py-3 rounded-xl font-black text-xs tracking-wider uppercase transition-all bg-orange-600 text-white shadow-lg shadow-orange-600/20";
+                tabWithdraw.className = "flex-1 py-3 rounded-xl font-black text-xs tracking-wider uppercase transition-all text-gray-400 hover:text-gray-200";
+                addSection.classList.remove('hidden');
+                withdrawSection.classList.add('hidden');
+            } else {
+                tabWithdraw.className = "flex-1 py-3 rounded-xl font-black text-xs tracking-wider uppercase transition-all bg-orange-600 text-white shadow-lg shadow-orange-600/20";
+                tabAdd.className = "flex-1 py-3 rounded-xl font-black text-xs tracking-wider uppercase transition-all text-gray-400 hover:text-gray-200";
+                withdrawSection.classList.remove('hidden');
+                addSection.classList.add('hidden');
+            }
+        }
+
+        // UPI QR और डायरेक्ट पेमेंट लिंक बनाना
+        function genQR() {
+            const a = document.getElementById('amt').value;
+            const qrBox = document.getElementById('qrBox');
+            const upiPayBtn = document.getElementById('upiPayBtn');
+            
+            // सुरक्षा जाँच: यदि UPI ID अभी तक लोड नहीं हुई है तो आगे न बढ़ें
+            if (!myUPI) return;
+
+            if (a > 0) {
+                const upiUrl = `upi://pay?pa=${myUPI}&pn=FireZone&am=${a}&cu=INR`;
+                document.getElementById('qrImg').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiUrl)}`;
+                upiPayBtn.href = upiUrl;
+                qrBox.classList.remove('hidden');
+            } else {
+                qrBox.classList.add('hidden');
+            }
+        }
+
+        // 1. ADD MONEY: पेमेंट रिक्वेस्ट सबमिट करना
+        async function submitPayment() {
+            const file = document.getElementById('fileInput').files[0];
+            const amount = document.getElementById('amt').value;
+            const btn = document.getElementById('subBtn');
+            const status = document.getElementById('status');
+
+            if (!amount || amount <= 0) return alert("कृपया सही राशि दर्ज करें!");
+            if (!file) return alert("कृपया पेमेंट का स्क्रीनशॉट अपलोड करें!");
+
+            btn.disabled = true;
+            btn.className = "w-full bg-slate-800 py-4 rounded-2xl font-black text-sm uppercase text-gray-500 cursor-not-allowed";
+            btn.innerText = "UPLOADING...";
+            status.innerText = "इमेज को लिंक में बदला जा रहा है, कृपया प्रतीक्षा करें...";
+
+            const formData = new FormData();
+            formData.append("image", file);
+
+            try {
+                const res = await fetch("https://api.imgbb.com/1/upload?key=d5de2af8625d09ffb92cc67a2c547250", {
+                    method: "POST",
+                    body: formData
+                });
+                const data = await res.json();
+                
+                if (!data.success) {
+                    throw new Error("इमेज अपलोड विफल रहा!");
+                }
+
+                const screenshotLink = data.data.url;
+                const user = firebase.auth().currentUser;
+
+                await db.collection("payment_requests").add({
+                    uid: user.uid,
+                    email: user.email,
+                    amount: Number(amount),
+                    screenshot: screenshotLink,
+                    status: "pending",
+                    time: new Date()
+                });
+
+                alert("पेमेंट रिक्वेस्ट सफलतापूर्वक भेज दी गई! एडमिन जल्द ही चेक करके पैसे जोड़ देंगे।");
+                window.location.href = "home.html";
+
+            } catch (err) {
+                alert("त्रुटि: " + err.message);
+                btn.disabled = false;
+                btn.className = "w-full bg-orange-600 py-4 rounded-2xl font-black text-sm uppercase tracking-wider shadow-lg shadow-orange-600/30 active:scale-[0.98] transition-all";
+                btn.innerText = "सबमिट पेमेंट रिक्वेस्ट";
+                status.innerText = "";
+            }
+        }
+
+        // 2. WITHDRAW: विड्रॉ रिक्वेस्ट सबमिट करना
+        async function submitWithdraw() {
+            const wAmount = document.getElementById('wAmount').value;
+            const wUpi = document.getElementById('wUpi').value.trim();
+            const wPhone = document.getElementById('wPhone').value.trim();
+            const wSubBtn = document.getElementById('wSubBtn');
+            const status = document.getElementById('status');
+
+            if (!wAmount || wAmount < 50) return alert("न्यूनतम विड्रॉ राशि ₹50 होनी चाहिए!");
+            if (!wUpi) return alert("कृपया अपनी सही UPI ID दर्ज करें!");
+            if (wPhone.length < 10) return alert("कृपया वैध 10 अंकों का फोन नंबर दर्ज करें!");
+
+            wSubBtn.disabled = true;
+            wSubBtn.className = "w-full bg-slate-800 py-4 rounded-2xl font-black text-sm uppercase text-gray-500 cursor-not-allowed";
+            wSubBtn.innerText = "SUBMITTING...";
+            status.innerText = "विड्रॉ अनुरोध भेजा जा रहा है...";
+
+            try {
+                const user = firebase.auth().currentUser;
+
+                const userDoc = await db.collection("users").doc(user.uid).get();
+                const availableBalance = userDoc.exists ? (userDoc.data().coins || 0) : 0;
+
+                if (Number(wAmount) > availableBalance) {
+                    throw new Error("आपके पास पर्याप्त बैलेंस नहीं है! वर्तमान बैलेंस: ₹" + availableBalance);
+                }
+
+                await db.collection("withdraw_requests").add({
+                    uid: user.uid,
+                    email: user.email,
+                    amount: Number(wAmount),
+                    upiId: wUpi,
+                    phone: wPhone,
+                    status: "pending",
+                    time: new Date()
+                });
+
+                await db.collection("users").doc(user.uid).update({
+                    coins: availableBalance - Number(wAmount)
+                });
+
+                alert("विड्रॉ रिक्वेस्ट सबमिट हो गई है! 24 घंटे के भीतर आपका payment ट्रांसफर कर दिया जाएगा।");
+                window.location.href = "home.html";
+
+            } catch (err) {
+                alert("त्रुटि: " + err.message);
+                wSubBtn.disabled = false;
+                wSubBtn.className = "w-full bg-orange-600 py-4 rounded-2xl font-black text-sm uppercase tracking-wider shadow-lg shadow-orange-600/30 active:scale-[0.98] transition-all";
+                wSubBtn.innerText = "सबमिट विड्रॉ रिक्वेस्ट";
+                status.innerText = "";
+            }
+        }
+    </script>
+</body>
+</html>

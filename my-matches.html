@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Matches - FireZone</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore-compat.js"></script>
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-slate-950 text-white pb-28 font-sans selection:bg-orange-500 selection:text-white">
+
+    <!-- Top Header -->
+    <header class="p-5 bg-slate-900/90 backdrop-blur-md flex justify-between items-center shadow-xl border-b border-slate-800/80 sticky top-0 z-50">
+        <h1 class="text-2xl font-black text-orange-500 italic tracking-wider">FIREZONE</h1>
+        <h2 class="text-xs font-bold bg-orange-600/20 text-orange-400 border border-orange-500/30 px-3 py-1.5 rounded-full uppercase tracking-wider">
+            My Matches
+        </h2>
+    </header>
+
+    <div class="p-6 max-w-2xl mx-auto">
+        <!-- Modern Tabs -->
+        <div class="flex bg-slate-900 p-1.5 rounded-2xl mb-6 border border-slate-800">
+            <button onclick="switchTab('up')" id="btnUp" class="flex-1 py-3 rounded-xl font-black text-xs tracking-wider uppercase transition-all bg-orange-600 text-white shadow-lg shadow-orange-600/20">
+                <i class="fa-solid fa-gamepad mr-1.5"></i> UPCOMING
+            </button>
+            <button onclick="switchTab('done')" id="btnDone" class="flex-1 py-3 rounded-xl font-black text-xs tracking-wider uppercase transition-all text-gray-400 hover:text-gray-200">
+                <i class="fa-solid fa-circle-check mr-1.5"></i> COMPLETED
+            </button>
+        </div>
+
+        <!-- Matches List Container -->
+        <div id="myMatchList" class="space-y-4">
+            <div class="flex flex-col items-center justify-center py-20 text-gray-500 space-y-3">
+                <span class="text-4xl animate-spin text-orange-500"><i class="fa-solid fa-circle-notch"></i></span>
+                <p class="font-medium text-sm">मैच लोड हो रहे हैं...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-850 p-3 flex justify-around items-center z-50">
+        <a href="home.html" class="flex flex-col items-center text-gray-500 hover:text-white transition-all">
+            <span class="text-xl mb-1"><i class="fa-solid fa-gamepad"></i></span>
+            <span class="text-[10px] font-bold uppercase tracking-wider">Play</span>
+        </a>
+        <a href="my-matches.html" class="flex flex-col items-center text-orange-500 transition-all">
+            <span class="text-xl mb-1"><i class="fa-solid fa-ticket"></i></span>
+            <span class="text-[10px] font-bold uppercase tracking-wider">Matches</span>
+        </a>
+        <a href="help.html" class="flex flex-col items-center text-gray-500 hover:text-white transition-all">
+            <span class="text-xl mb-1"><i class="fa-solid fa-clock-rotate-left"></i></span>
+            <span class="text-[10px] font-bold uppercase tracking-wider">Help</span>
+        </a>
+        <a href="leaderboard.html" class="flex flex-col items-center text-gray-500 hover:text-white transition-all">
+            <span class="text-xl mb-1"><i class="fa-solid fa-ranking-star"></i></span>
+            <span class="text-[10px] font-bold uppercase tracking-wider">Rank</span>
+        </a>
+    </nav>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyC8NQ_bmJl-qRy0H_AzJ968bWwzhwMAsGw",
+            authDomain: "firezone-a0a02.firebaseapp.com",
+            projectId: "firezone-a0a02",
+            storageBucket: "firezone-a0a02.firebasestorage.app",
+            messagingSenderId: "1068854164782",
+            appId: "1:1068854164782:web:8a627cdf687583debecebf"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let currentTab = 'up';
+
+        function switchTab(t) {
+            currentTab = t;
+            const btnUp = document.getElementById('btnUp');
+            const btnDone = document.getElementById('btnDone');
+
+            if (t === 'up') {
+                btnUp.className = "flex-1 py-3 rounded-xl font-black text-xs tracking-wider uppercase transition-all bg-orange-600 text-white shadow-lg shadow-orange-600/20";
+                btnDone.className = "flex-1 py-3 rounded-xl font-black text-xs tracking-wider uppercase transition-all text-gray-400 hover:text-gray-200";
+            } else {
+                btnUp.className = "flex-1 py-3 rounded-xl font-black text-xs tracking-wider uppercase transition-all text-gray-400 hover:text-gray-200";
+                btnDone.className = "flex-1 py-3 rounded-xl font-black text-xs tracking-wider uppercase transition-all bg-orange-600 text-white shadow-lg shadow-orange-600/20";
+            }
+            loadMyMatches();
+        }
+
+        firebase.auth().onAuthStateChanged(user => {
+            if (user) {
+                loadMyMatches();
+            } else {
+                window.location.href = "index.html";
+            }
+        });
+
+        async function loadMyMatches() {
+            const user = firebase.auth().currentUser;
+            if (!user) return;
+
+            const list = document.getElementById('myMatchList');
+            list.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-20 text-gray-500 space-y-3">
+                    <span class="text-4xl animate-spin text-orange-500"><i class="fa-solid fa-circle-notch"></i></span>
+                    <p class="font-medium text-sm">आपके जॉइन किए हुए मैच खोज रहे हैं...</p>
+                </div>
+            `;
+
+            try {
+                const snap = await db.collection("registrations").where("userId", "==", user.uid).get();
+                
+                if (snap.empty) {
+                    list.innerHTML = `
+                        <div class="text-center py-16 bg-slate-900 rounded-3xl border border-slate-800/80 p-6">
+                            <span class="text-4xl text-gray-600"><i class="fa-solid fa-ticket-simple"></i></span>
+                            <p class="text-gray-400 mt-3 text-sm font-medium">आपने अभी तक कोई टूर्नामेंट जॉइन नहीं किया है।</p>
+                            <a href="home.html" class="inline-block mt-4 text-xs font-bold bg-orange-600/20 text-orange-400 border border-orange-500/30 px-4 py-2 rounded-xl hover:bg-orange-600 hover:text-white transition-all">मैच जॉइन करें</a>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const matchPromises = snap.docs.map(async (regDoc) => {
+                    const reg = regDoc.data();
+                    const mDoc = await db.collection("matches").doc(reg.matchId).get();
+                    if (mDoc.exists) {
+                        return { id: mDoc.id, ...mDoc.data() };
+                    }
+                    return null;
+                });
+
+                const rawMatches = await Promise.all(matchPromises);
+                const matches = rawMatches.filter(m => m !== null);
+
+                const filteredMatches = matches.filter(m => {
+                    return currentTab === 'up' ? m.status !== 'completed' : m.status === 'completed';
+                });
+
+                list.innerHTML = "";
+
+                if (filteredMatches.length === 0) {
+                    list.innerHTML = `
+                        <div class="text-center py-16 bg-slate-900 rounded-3xl border border-slate-800/80 p-6">
+                            <span class="text-4xl text-gray-600"><i class="fa-solid fa-ghost"></i></span>
+                            <p class="text-gray-400 mt-3 text-sm font-medium">इस सेक्शन में कोई मैच नहीं है।</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                filteredMatches.forEach(m => {
+                    let roomSection = "";
+                    
+                    // FIXED: अब UPCOMING और COMPLETED दोनों ही टैब में रूम आईडी और पासवर्ड दिखेगा
+                    if (m.roomID && m.roomPass) {
+                        roomSection = `
+                            <div class="mt-4 p-4 bg-green-500/10 border border-green-500/30 rounded-2xl flex justify-between items-center">
+                                <div>
+                                    <p class="text-[9px] uppercase font-black text-green-500 tracking-wider">Room Credentials</p>
+                                    <p class="text-sm font-black text-white mt-0.5">ID: ${m.roomID} | Pass: ${m.roomPass}</p>
+                                </div>
+                                <button onclick="event.stopPropagation(); navigator.clipboard.writeText('ID: ${m.roomID} Pass: ${m.roomPass}'); alert('Copy हो गया!');" class="bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-white text-xs px-3 py-1.5 rounded-lg font-bold transition-all">
+                                    Copy
+                                </button>
+                            </div>
+                        `;
+                    } else {
+                        // यदि एडमिन ने रूम आईडी सेट नहीं की है
+                        if (currentTab === 'up') {
+                            roomSection = `
+                                <div class="mt-4 p-4 bg-slate-950/60 rounded-2xl border border-slate-800 flex items-center gap-2 text-gray-500">
+                                    <i class="fa-solid fa-circle-info text-orange-500/70 text-xs animate-pulse"></i>
+                                    <p class="text-[10px] font-bold uppercase tracking-wider leading-none">मैच शुरू होने से 15 मिनट पहले रूम आईडी दी जाएगी।</p>
+                                </div>
+                            `;
+                        } else {
+                            roomSection = `
+                                <div class="mt-4 p-4 bg-slate-950/60 rounded-2xl border border-slate-800 flex items-center gap-2 text-gray-500">
+                                    <i class="fa-solid fa-circle-info text-gray-500 text-xs"></i>
+                                    <p class="text-[10px] font-bold uppercase tracking-wider leading-none">इस मैच की कोई रूम जानकारी उपलब्ध नहीं है।</p>
+                                </div>
+                            `;
+                        }
+                    }
+
+                    // यदि मैच खत्म हो चुका है, तो उसके ऊपर एक छोटा 'Finished' अलर्ट रिबन भी जोड़ दिया गया है
+                    let finishRibbon = "";
+                    if (currentTab === 'done') {
+                        finishRibbon = `
+                            <div class="mb-3 p-2 bg-slate-950/40 border border-slate-800 rounded-xl text-center">
+                                <p class="text-[9px] text-gray-400 font-black uppercase tracking-wider">🏆 Match Finished</p>
+                            </div>
+                        `;
+                    }
+
+                    list.innerHTML += `
+                        <div class="bg-slate-900 p-5 rounded-3xl border border-slate-850 shadow-xl relative overflow-hidden">
+                            ${finishRibbon}
+                            <div onclick="window.location.href='details.html?id=${m.id}'" class="cursor-pointer">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <h4 class="font-black text-base uppercase tracking-tight text-gray-100">${m.title}</h4>
+                                        <p class="text-xs text-orange-500 font-bold mt-1.5 flex items-center gap-1.5">
+                                            <i class="fa-regular fa-clock"></i> ${m.time.replace('T', ' ')}
+                                        </p>
+                                    </div>
+                                    <span class="bg-slate-950 text-orange-500 border border-slate-800 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">${m.category || 'Solo'}</span>
+                                </div>
+                                ${roomSection}
+                            </div>
+
+                            <!-- Players & Leaderboard Section Trigger -->
+                            <div class="mt-4 pt-3 border-t border-slate-800 flex justify-between items-center">
+                                <button onclick="togglePlayersList('${m.id}')" class="text-xs font-black text-gray-400 hover:text-orange-500 transition-all flex items-center gap-2 bg-slate-950 px-4 py-2 rounded-xl border border-slate-850">
+                                    <i class="fa-solid fa-users text-orange-500"></i> View Standings / खिलाड़ी सूची
+                                </button>
+                            </div>
+
+                            <!-- Hidden Leaderboard/Player Dropdown Container -->
+                            <div id="playerBox_${m.id}" class="hidden mt-4 p-4 bg-slate-950 rounded-2xl border border-slate-850 transition-all">
+                                <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-800 text-[10px] font-black uppercase tracking-widest text-gray-500">
+                                    <span>Player Name</span>
+                                    <div class="flex gap-6">
+                                        <span>Kills</span>
+                                        <span>Prize</span>
+                                    </div>
+                                </div>
+                                <div id="playerRows_${m.id}" class="space-y-2 max-h-48 overflow-y-auto no-scrollbar">
+                                    <p class="text-xs text-center text-gray-600 py-2">डेटा लोड हो रहा है...</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+            } catch (error) {
+                console.error("Error loading My Matches: ", error);
+                list.innerHTML = `<p class="text-center py-10 text-red-500">डेटा लोड करने में समस्या आई। कृपया रिफ्रेश करें।</p>`;
+            }
+        }
+
+        // किसी विशिष्ट मैच के लाइव प्लेयर्स, किल्स और विनर को दिखाने का फंक्शन
+        async function togglePlayersList(mId) {
+            const box = document.getElementById(`playerBox_${mId}`);
+            const rows = document.getElementById(`playerRows_${mId}`);
+            
+            if (!box.classList.contains('hidden')) {
+                box.classList.add('hidden');
+                return;
+            }
+            
+            box.classList.remove('hidden');
+
+            try {
+                const snap = await db.collection("registrations").where("matchId", "==", mId).get();
+                rows.innerHTML = "";
+
+                if (snap.empty) {
+                    rows.innerHTML = `<p class="text-xs text-center text-gray-600 py-2">इस मैच में कोई अन्य खिलाड़ी नहीं मिला।</p>`;
+                    return;
+                }
+
+                snap.forEach(doc => {
+                    const p = doc.data();
+                    const kills = p.kills || 0;
+                    const prizeEarned = p.prizeEarned || 0;
+                    const isWinner = p.isWinner === true || p.rank === 1;
+
+                    rows.innerHTML += `
+                        <div class="flex justify-between items-center text-xs py-1.5 px-2 rounded-lg bg-slate-900/50 ${isWinner ? 'border border-amber-500/30 bg-amber-500/5' : ''}">
+                            <div class="flex items-center gap-2 truncate max-w-[60%]">
+                                ${isWinner ? '<span class="text-amber-400 text-sm animate-bounce">🏆</span>' : '<span class="w-1.5 h-1.5 bg-slate-700 rounded-full"></span>'}
+                                <span class="font-bold text-gray-200 truncate ${isWinner ? 'text-amber-400 font-black' : ''}">${p.username || "Gamer"}</span>
+                            </div>
+                            <div class="flex gap-8 font-black text-right shrink-0">
+                                <span class="text-gray-300 w-6 text-center">${kills}</span>
+                                <span class="${prizeEarned > 0 ? 'text-green-400' : 'text-gray-500'} w-10">₹${prizeEarned}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+
+            } catch (err) {
+                console.error("Error fetching standings:", err);
+                rows.innerHTML = `<p class="text-xs text-center text-red-500 py-2">खिलाड़ी सूची लोड करने में विफल।</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Setup - FireZone</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore-compat.js"></script>
+</head>
+<body class="bg-slate-900 text-white p-6">
+
+    <div class="max-w-md mx-auto">
+        <div class="flex justify-between items-center mb-10">
+            <h2 class="text-3xl font-black italic text-orange-500">FIREZONE</h2>
+            <button onclick="logout()" class="text-red-500 font-bold text-sm">LOGOUT</button>
+        </div>
+
+        <h3 class="text-xl font-bold mb-6">Profile Setup 🛠️</h3>
+
+        <div class="space-y-4 bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-2xl">
+            <div>
+                <label class="text-xs text-gray-500 uppercase font-bold ml-1">Full Name</label>
+                <input type="text" id="name" placeholder="अपना नाम लिखें" class="w-full bg-slate-900 p-4 rounded-2xl outline-none border border-slate-700 focus:border-orange-500">
+            </div>
+
+            <div>
+                <label class="text-xs text-gray-500 uppercase font-bold ml-1">Game Username</label>
+                <input type="text" id="username" placeholder="Game Name (जैसे: Killer_FF)" class="w-full bg-slate-900 p-4 rounded-2xl outline-none border border-slate-700 focus:border-orange-500">
+            </div>
+
+            <div>
+                <label class="text-xs text-gray-500 uppercase font-bold ml-1">Phone Number</label>
+                <input type="number" id="phone" placeholder="WhatsApp नंबर" class="w-full bg-slate-900 p-4 rounded-2xl outline-none border border-slate-700 focus:border-orange-500">
+            </div>
+
+            <div>
+                <label class="text-xs text-gray-500 uppercase font-bold ml-1">Gmail (Optional)</label>
+                <input type="email" id="altEmail" placeholder="वैकल्पिक ईमेल" class="w-full bg-slate-900 p-4 rounded-2xl outline-none border border-slate-700 focus:border-orange-500">
+            </div>
+
+            <div>
+                <label class="text-xs text-gray-500 uppercase font-bold ml-1">Photo URL</label>
+                <input type="text" id="photo" placeholder="फोटो का लिंक डालें" class="w-full bg-slate-900 p-4 rounded-2xl outline-none border border-slate-700 focus:border-orange-500">
+            </div>
+
+            <button onclick="saveProfile()" class="w-full bg-orange-600 py-4 rounded-2xl font-black mt-4 shadow-lg shadow-orange-600/20 active:scale-95 transition-all">
+                SAVE & CONTINUE
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyC8NQ_bmJl-qRy0H_AzJ968bWwzhwMAsGw",
+            authDomain: "firezone-a0a02.firebaseapp.com",
+            projectId: "firezone-a0a02",
+            storageBucket: "firezone-a0a02.firebasestorage.app",
+            messagingSenderId: "1068854164782",
+            appId: "1:1068854164782:web:8a627cdf687583debecebf"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // डेटा लोड करना
+        firebase.auth().onAuthStateChanged(user => {
+            if(user) {
+                db.collection("users").doc(user.uid).get().then(doc => {
+                    if(doc.exists) {
+                        const data = doc.data();
+                        document.getElementById('name').value = data.name || "";
+                        document.getElementById('username').value = data.username || "";
+                        document.getElementById('phone').value = data.phone || "";
+                        document.getElementById('altEmail').value = data.altEmail || "";
+                        document.getElementById('photo').value = data.photo || "";
+                    }
+                });
+            } else {
+                window.location.href = "index.html";
+            }
+        });
+
+        // डेटा सेव करना
+        function saveProfile() {
+            const user = firebase.auth().currentUser;
+            const userData = {
+                name: document.getElementById('name').value,
+                username: document.getElementById('username').value,
+                phone: document.getElementById('phone').value,
+                altEmail: document.getElementById('altEmail').value,
+                photo: document.getElementById('photo').value,
+                uid: user.uid,
+                email: user.email
+            };
+
+            if(!userData.name || !userData.username || !userData.phone) {
+                alert("कृपया नाम, गेम यूजरनेम और फोन नंबर जरूर भरें!");
+                return;
+            }
+
+            db.collection("users").doc(user.uid).set(userData, {merge: true})
+            .then(() => {
+                alert("Profile Updated Successfully!");
+                window.location.href = "home.html"; // अगले पेज पर भेजें
+            }).catch(err => alert(err.message));
+        }
+
+        function logout() {
+            firebase.auth().signOut().then(() => window.location.href = "index.html");
+        }
+    </script>
+</body>
+</html>
