@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notice Board - FireZone</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore-compat.js"></script>
+    <style>
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slideIn { animation: slideIn 0.3s ease-out forwards; }
+    </style>
+</head>
+<body class="bg-slate-900 text-white p-4 md:p-6 font-sans pb-10">
+
+    <div class="max-w-md mx-auto">
+        <!-- Header -->
+        <div class="flex items-center gap-4 mb-8 bg-slate-800/40 p-4 rounded-3xl border border-slate-700/50">
+            <a href="home.html" class="bg-slate-800 hover:bg-slate-700 p-2 rounded-xl transition-all active:scale-95">⬅️</a>
+            <div>
+                <h2 class="text-2xl font-black italic text-orange-500 uppercase tracking-wide">NOTICE BOARD</h2>
+                <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">महत्वपूर्ण सूचनाएं और अपडेट्स</p>
+            </div>
+        </div>
+
+        <!-- Notices Container -->
+        <div id="userNoticesList" class="space-y-4">
+            <!-- नोटिस यहाँ लाइव लोड होंगे -->
+            <div class="text-center py-10">
+                <p class="text-orange-400 animate-pulse font-bold text-sm uppercase tracking-wider">🔄 नई सूचनाएं लोड हो रही हैं...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // अपनी सही फायरबेस क्रेडेंशियल्स का उपयोग करें
+        const firebaseConfig = {
+            apiKey: "AIzaSyC8NQ_bmJl-qRy0H_AzJ968bWwzhwMAsGw",
+            authDomain: "firezone-a0a02.firebaseapp.com",
+            projectId: "firezone-a0a02",
+            storageBucket: "firezone-a0a02.firebasestorage.app",
+            messagingSenderId: "1068854164782",
+            appId: "1:1068854164782:web:8a627cdf687583debecebf"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // यूजर के लॉगिन स्टेटस की जांच (सुरक्षा के लिए)
+        firebase.auth().onAuthStateChanged(user => {
+            if (!user) {
+                window.location.href = "index.html"; // अगर लॉगइन नहीं है तो बाहर भेजें
+            }
+        });
+
+        // डेटाबेस से सभी नोटिस लाइव लोड करना (नया नोटिस सबसे ऊपर दिखेगा)
+        db.collection("notices").orderBy("time", "desc").onSnapshot(snap => {
+            const container = document.getElementById('userNoticesList');
+            
+            if (snap.empty) {
+                container.innerHTML = `
+                    <div class="bg-slate-800/50 p-8 rounded-3xl border border-slate-800 text-center shadow-lg">
+                        <p class="text-gray-500 italic text-sm uppercase font-bold tracking-wider">📢 अभी कोई नई सूचना उपलब्ध नहीं है।</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = "";
+            snap.forEach(doc => {
+                const data = doc.data();
+                
+                // टाइमस्टैम्प को पढ़ने योग्य भारतीय फॉर्मेट में बदलना
+                let formattedTime = "N/A";
+                if (data.time) {
+                    formattedTime = data.time.toDate().toLocaleString('hi-IN', { 
+                        dateStyle: 'medium', 
+                        timeStyle: 'short',
+                        hour12: true 
+                    });
+                }
+
+                html += `
+                    <div class="bg-slate-800 p-5 rounded-3xl border border-slate-700/70 shadow-xl flex flex-col gap-3 animate-slideIn">
+                        <!-- नोटिस आइकन और टाइम -->
+                        <div class="flex justify-between items-center text-[10px] font-black tracking-wider uppercase text-gray-400">
+                            <span class="bg-orange-600/10 text-orange-400 px-2.5 py-1 rounded-full border border-orange-500/10">🔔 Announcement</span>
+                            <span class="font-mono text-gray-500">${formattedTime}</span>
+                        </div>
+                        
+                        <!-- मुख्य टेक्स्ट संदेश -->
+                        <p class="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap font-medium select-text selection:bg-orange-500 selection:text-slate-900">${data.text}</p>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        });
+    </script>
+</body>
+</html>
