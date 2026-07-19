@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FireZone - Matches</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore-compat.js"></script>
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-slate-950 text-white pb-28 font-sans selection:bg-orange-500 selection:text-white">
+
+    <!-- Header -->
+    <header class="p-5 bg-slate-900/90 backdrop-blur-md flex justify-between items-center shadow-xl border-b border-slate-800/80 sticky top-0 z-50">
+        <h1 class="text-2xl font-black text-orange-500 italic tracking-wider">FIREZONE</h1>
+        <div class="flex items-center gap-3">
+            <!-- कॉइन्स बैलेंस -->
+            <a href="payment.html" class="bg-slate-800 hover:bg-slate-700 px-3.5 py-2 rounded-full text-xs font-bold border border-slate-700 flex items-center gap-1.5 transition-all active:scale-95">
+                <span class="text-amber-500"><i class="fa-solid fa-coins"></i></span>
+                <span id="balance" class="text-white">0</span>
+            </a>
+
+            <!-- 🔔 लाइव नोटिस घंटी बटन (नया मेसेज आने पर रेड डॉट के साथ) -->
+            <a href="notices.html" class="relative bg-slate-800 hover:bg-slate-700 p-2.5 rounded-full border border-slate-700 transition-all active:scale-95 text-gray-300 hover:text-orange-500">
+                <i class="fa-solid fa-bell text-base"></i>
+                <!-- रेड नोटिफिकेशन बैच (शुरुआत में छुपा हुआ) -->
+                <span id="noticeBadge" class="hidden absolute top-0.5 right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse ring-2 ring-slate-900"></span>
+            </a>
+
+            <!-- यूजर प्रोफाइल फोटो -->
+            <a href="profile.html" class="relative group shrink-0">
+                <img id="uPhoto" src="https://via.placeholder.com/40" class="w-10 h-10 rounded-full border-2 border-orange-500 object-cover shadow-lg shadow-orange-500/20">
+                <span class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-slate-900 rounded-full"></span>
+            </a>
+        </div>
+    </header>
+
+    <!-- Filters Section -->
+    <div id="filter-container" class="flex gap-3 overflow-x-auto p-5 no-scrollbar bg-slate-950 sticky top-[81px] z-40 border-b border-slate-900">
+        <button onclick="loadMatches('All', this)" class="filter-btn bg-orange-600 px-6 py-2.5 rounded-xl whitespace-nowrap font-bold shadow-lg shadow-orange-600/30 transition-all text-sm">All</button>
+        <button onclick="loadMatches('Solo', this)" class="filter-btn bg-slate-900 hover:bg-slate-800 px-6 py-2.5 rounded-xl whitespace-nowrap border border-slate-800 transition-all text-sm text-gray-400 font-medium">Solo</button>
+        <button onclick="loadMatches('Duo', this)" class="filter-btn bg-slate-900 hover:bg-slate-800 px-6 py-2.5 rounded-xl whitespace-nowrap border border-slate-800 transition-all text-sm text-gray-400 font-medium">Duo</button>
+        <button onclick="loadMatches('Squad', this)" class="filter-btn bg-slate-900 hover:bg-slate-800 px-6 py-2.5 rounded-xl whitespace-nowrap border border-slate-800 transition-all text-sm text-gray-400 font-medium">Squad</button>
+    </div>
+
+    <!-- Match List -->
+    <div id="matchList" class="px-5 space-y-6 mt-4 max-w-2xl mx-auto">
+        <div class="flex flex-col items-center justify-center py-20 text-gray-500 space-y-3">
+            <span class="text-4xl animate-spin text-orange-500"><i class="fa-solid fa-circle-notch"></i></span>
+            <p class="font-medium text-sm">मैच लोड हो रहे हैं...</p>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-850 p-3 flex justify-around items-center z-50">
+        <a href="home.html" class="flex flex-col items-center text-orange-500 transition-all">
+            <span class="text-xl mb-1"><i class="fa-solid fa-gamepad"></i></span>
+            <span class="text-[10px] font-bold uppercase tracking-wider">Play</span>
+        </a>
+        <a href="my-matches.html" class="flex flex-col items-center text-gray-500 hover:text-white transition-all">
+            <span class="text-xl mb-1"><i class="fa-solid fa-ticket"></i></span>
+            <span class="text-[10px] font-bold uppercase tracking-wider">Matches</span>
+        </a>
+        <a href="help.html" class="flex flex-col items-center text-gray-500 hover:text-white transition-all">
+            <span class="text-xl mb-1"><i class="fa-solid fa-clock-rotate-left"></i></span>
+            <span class="text-[10px] font-bold uppercase tracking-wider">Help</span>
+        </a>
+        <a href="leaderboard.html" class="flex flex-col items-center text-gray-500 hover:text-white transition-all">
+            <span class="text-xl mb-1"><i class="fa-solid fa-ranking-star"></i></span>
+            <span class="text-[10px] font-bold uppercase tracking-wider">Rank</span>
+        </a>
+    </nav>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyC8NQ_bmJl-qRy0H_AzJ968bWwzhwMAsGw",
+            authDomain: "firezone-a0a02.firebaseapp.com",
+            projectId: "firezone-a0a02",
+            storageBucket: "firezone-a0a02.firebasestorage.app",
+            messagingSenderId: "1068854164782",
+            appId: "1:1068854164782:web:8a627cdf687583debecebf"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // 24 घंटे के फॉर्मेट (YYYY-MM-DDTHH:MM) को 12 घंटे AM/PM में बदलने का फंक्शन
+        function formatTo12Hour(timeStr) {
+            if (!timeStr) return "No Time Set";
+            try {
+                const dateObj = new Date(timeStr);
+                if (isNaN(dateObj.getTime())) return timeStr.replace('T', ' ');
+
+                let hours = dateObj.getHours();
+                const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+                const ampm = hours >= 12 ? 'PM' : 'AM';
+                
+                hours = hours % 12;
+                hours = hours ? hours : 12;
+                const displayHours = String(hours).padStart(2, '0');
+
+                const day = String(dateObj.getDate()).padStart(2, '0');
+                const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const year = dateObj.getFullYear();
+
+                return `${day}-${month}-${year} | ${displayHours}:${minutes} ${ampm}`;
+            } catch (e) {
+                return timeStr.replace('T', ' ');
+            }
+        }
+
+        firebase.auth().onAuthStateChanged(user => {
+            if (user) {
+                db.collection("users").doc(user.uid).onSnapshot(doc => {
+                    if (doc.exists) {
+                        document.getElementById('balance').innerText = doc.data().coins || 0;
+                        if (doc.data().photo) document.getElementById('uPhoto').src = doc.data().photo;
+                    }
+                });
+                const defaultBtn = document.querySelector('.filter-btn');
+                loadMatches('All', defaultBtn);
+                
+                // 🔔 लाइव नोटिस चेक करने वाला फंक्शन शुरू करें
+                listenToLiveNotices();
+            } else {
+                window.location.href = "index.html";
+            }
+        });
+
+        // 🔔 लाइव नए नोटिस को डिटेक्ट करने और रेड डॉट दिखाने का लॉजिक
+        function listenToLiveNotices() {
+            db.collection("notices").orderBy("time", "desc").limit(1).onSnapshot(snap => {
+                const badge = document.getElementById('noticeBadge');
+                if (!snap.empty) {
+                    const latestNoticeDoc = snap.docs[0];
+                    const latestNoticeId = latestNoticeDoc.id;
+                    
+                    // लोकल स्टोरेज से चेक करें कि क्या यूजर ने यह आखिरी नोटिस पहले ही देख लिया है
+                    const lastSeenNoticeId = localStorage.getItem('lastSeenNoticeId');
+                    
+                    if (latestNoticeId !== lastSeenNoticeId) {
+                        // अगर डेटाबेस का नोटिस आईडी और यूजर का पुराना देखा गया आईडी अलग है, तो रेड डॉट दिखाएं
+                        badge.classList.remove('hidden');
+                    } else {
+                        badge.classList.add('hidden');
+                    }
+                } else {
+                    badge.classList.add('hidden');
+                }
+            });
+        }
+
+        function loadMatches(category, element) {
+            if (element) {
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.className = "filter-btn bg-slate-900 hover:bg-slate-800 px-6 py-2.5 rounded-xl whitespace-nowrap border border-slate-800 transition-all text-sm text-gray-400 font-medium";
+                });
+                element.className = "filter-btn bg-orange-600 px-6 py-2.5 rounded-xl whitespace-nowrap font-bold shadow-lg shadow-orange-600/30 transition-all text-sm text-white";
+            }
+
+            let query = db.collection("matches");
+            if (category !== 'All') query = query.where("category", "==", category);
+
+            query.onSnapshot(snap => {
+                const list = document.getElementById('matchList');
+                list.innerHTML = "";
+                if (snap.empty) {
+                    list.innerHTML = `<div class="text-center py-16 bg-slate-900 rounded-2xl border border-slate-800/80 p-6"><p class="text-gray-400">कोई मैच उपलब्ध नहीं है।</p></div>`;
+                    return;
+                }
+                
+                snap.forEach(doc => {
+                    const m = doc.data();
+                    const matchId = doc.id;
+                    
+                    const totalSlots = Number(m.totalSlots || m.slots || 50);
+                    const perKillAmount = m.perKill || m.killPrize || 0;
+                    const mapName = m.map || "Bermuda";
+                    const formattedTime = formatTo12Hour(m.time);
+                    const cardId = `match-${matchId}`;
+                    
+                    list.innerHTML += `
+                        <div id="${cardId}" onclick="window.location.href='details.html?id=${matchId}'" class="bg-slate-900 rounded-2xl overflow-hidden shadow-lg border border-slate-800 hover:border-orange-500/50 active:scale-[0.98] transition-all cursor-pointer">
+                            <div class="h-28 bg-gradient-to-r from-orange-600 to-amber-500 p-5 flex flex-col justify-end relative overflow-hidden">
+                                <span class="absolute top-4 right-4 text-[10px] uppercase font-black px-2 py-0.5 rounded-md bg-black/30 backdrop-blur-sm tracking-wider text-orange-200 border border-white/10"><i class="fa-solid fa-map-location-dot mr-1"></i> ${mapName}</span>
+                                <h3 class="text-xl font-black uppercase tracking-tight z-10 truncate">${m.title}</h3>
+                                <p class="text-[11px] font-semibold opacity-90 uppercase z-10 flex items-center gap-1.5 mt-1"><i class="fa-regular fa-clock"></i> ${formattedTime}</p>
+                            </div>
+                            
+                            <div class="p-4 grid grid-cols-4 gap-2 bg-slate-900/60 border-b border-slate-800/60 text-center">
+                                <div><p class="text-[9px] text-gray-500 uppercase font-black tracking-wider">Win Prize</p><p class="text-sm font-black text-green-400 mt-0.5">₹${m.prize || m.winPrize || 0}</p></div>
+                                <div><p class="text-[9px] text-gray-500 uppercase font-black tracking-wider">Per Kill</p><p class="text-sm font-black text-amber-400 mt-0.5">₹${perKillAmount}</p></div>
+                                <div><p class="text-[9px] text-gray-500 uppercase font-black tracking-wider">Type</p><span class="inline-block px-2 py-0.5 rounded-md text-[10px] font-black bg-slate-800 text-orange-500 border border-slate-700 mt-0.5">${m.category || 'Solo'}</span></div>
+                                <div><p class="text-[9px] text-gray-500 uppercase font-black tracking-wider">Entry Fee</p><p class="text-sm font-black text-orange-500 mt-0.5">₹${m.fee}</p></div>
+                            </div>
+
+                            <div class="p-4 bg-slate-900/40">
+                                <div class="flex justify-between items-center text-[10px] font-black uppercase tracking-wider mb-1.5">
+                                    <span class="text-slate-400" id="joined-text-${matchId}">Loading Slots...</span>
+                                    <span class="text-orange-400" id="left-text-${matchId}">-- Left</span>
+                                </div>
+                                <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden border border-slate-700/50">
+                                    <div id="bar-${matchId}" class="bg-gradient-to-r from-orange-500 to-amber-500 h-full w-0 transition-all duration-500 rounded-full"></div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    db.collection("registrations").where("matchId", "==", matchId).onSnapshot(regSnap => {
+                        const joinedUsers = regSnap.size;
+                        const slotsLeft = Math.max(0, totalSlots - joinedUsers);
+                        const percentage = Math.min(100, (joinedUsers / totalSlots) * 100);
+
+                        const textJoined = document.getElementById(`joined-text-${matchId}`);
+                        const textLeft = document.getElementById(`left-text-${matchId}`);
+                        const progressBar = document.getElementById(`bar-${matchId}`);
+
+                        if (textJoined) textJoined.innerText = `${joinedUsers} / ${totalSlots} Joined`;
+                        if (textLeft) textLeft.innerText = `${slotsLeft} Slots Left`;
+                        if (progressBar) progressBar.style.width = `${percentage}%`;
+                    });
+                });
+            });
+        }
+    </script>
+</body>
+</html>
