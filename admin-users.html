@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Users - FireZone Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore-compat.js"></script>
+</head>
+<body class="bg-slate-900 text-white p-4 pb-20">
+
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-8">
+            <div class="flex items-center gap-4">
+                <a href="admin-dashboard.html" class="bg-slate-800 p-2 rounded-xl">⬅️</a>
+                <h2 class="text-2xl font-black italic uppercase">User Management</h2>
+            </div>
+            <div id="userCount" class="bg-orange-600/20 text-orange-500 px-4 py-1 rounded-full text-xs font-black border border-orange-500/20">0 Users</div>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="relative mb-8">
+            <input type="text" id="searchInput" placeholder="नाम या यूजरनेम से सर्च करें..." oninput="searchUser()" class="w-full bg-slate-800 p-5 rounded-3xl outline-none border border-slate-700 focus:border-orange-500 shadow-2xl transition-all">
+            <span class="absolute right-6 top-5 text-gray-500">🔍</span>
+        </div>
+
+        <!-- User Grid -->
+        <div id="userGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- यहाँ यूजर्स लोड होंगे -->
+        </div>
+    </div>
+
+    <!-- User Profile Modal -->
+    <div id="userModal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div class="bg-slate-900 w-full max-w-lg rounded-[40px] border border-slate-800 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="p-6 overflow-y-auto">
+                <div class="flex justify-between items-start mb-6">
+                    <h3 class="text-xl font-black text-orange-500 uppercase italic">User Detail Profile</h3>
+                    <button onclick="closeModal()" class="bg-slate-800 p-2 rounded-full hover:bg-slate-700 transition-colors">✕</button>
+                </div>
+
+                <div id="modalContent" class="space-y-6">
+                    <!-- प्रोफाइल जानकारी -->
+                </div>
+
+                <div class="mt-8">
+                    <h4 class="text-xs font-black text-gray-500 uppercase mb-4 tracking-widest px-2">Joined Matches History</h4>
+                    <div id="modalMatches" class="space-y-3">
+                        <!-- जॉइन किए हुए मैच यहाँ दिखेंगे -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = { 
+            apiKey: "AIzaSyC8NQ_bmJl-qRy0H_AzJ968bWwzhwMAsGw",
+            authDomain: "firezone-a0a02.firebaseapp.com",
+            projectId: "firezone-a0a02",
+            storageBucket: "firezone-a0a02.firebasestorage.app",
+            messagingSenderId: "1068854164782",
+            appId: "1:1068854164782:web:8a627cdf687583debecebf"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let allUsers = [];
+
+        // 1. सभी यूजर्स लोड करना
+        function fetchUsers() {
+            db.collection("users").onSnapshot(snap => {
+                allUsers = [];
+                document.getElementById('userCount').innerText = snap.size + " Users";
+                
+                snap.forEach(doc => {
+                    const u = doc.data();
+                    u.id = doc.id;
+                    allUsers.push(u);
+                });
+                // रेंडर प्रक्रिया को लूप के बाहर हैंडल किया ताकि DOM क्रैश न हो
+                renderAllCards(allUsers);
+            }, error => {
+                console.error("Firestore Fetch Error: ", error);
+            });
+        }
+
+        // सभी कार्ड्स को एक साथ स्क्रीन पर रेंडर करने का फंक्शन
+        function renderAllCards(usersArray) {
+            const grid = document.getElementById('userGrid');
+            grid.innerHTML = ""; 
+            
+            if(usersArray.length === 0) {
+                grid.innerHTML = "<p class='col-span-full text-center text-gray-500 py-8'>कोई यूजर नहीं मिला।</p>";
+                return;
+            }
+
+            usersArray.forEach(u => {
+                const isBanned = u.status === 'banned';
+                const username = u.username || 'No Username';
+                const coins = u.coins !== undefined ? u.coins : 0;
+                const photo = u.photo || 'https://via.placeholder.com/100';
+
+                grid.innerHTML += `
+                    <div class="bg-slate-800 p-6 rounded-[35px] border border-slate-700 shadow-xl transition-all hover:border-orange-500/50">
+                        <div class="flex items-center gap-4 mb-4">
+                            <img src="${photo}" class="w-12 h-12 rounded-full border-2 border-slate-700 object-cover" onerror="this.src='https://via.placeholder.com/100'">
+                            <div class="flex-1">
+                                <h4 class="font-black uppercase text-sm ${isBanned ? 'line-through text-red-500 font-normal' : ''}">${username}</h4>
+                                <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">🪙 Coins: ${coins}</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="viewProfile('${u.id}')" class="flex-1 bg-slate-700 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-slate-600 transition-colors">View Details</button>
+                            <button onclick="toggleBan('${u.id}', '${u.status || 'active'}')" class="${isBanned ? 'bg-green-600 hover:bg-green-500' : 'bg-red-600/20 text-red-500 hover:bg-red-600/40'} px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all">
+                                ${isBanned ? 'Unban' : 'Ban'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // 3. सुधरा हुआ सुरक्षित सर्च फंक्शन (Optional Chaining के साथ)
+        function searchUser() {
+            const val = document.getElementById('searchInput').value.toLowerCase().trim();
+            
+            const filtered = allUsers.filter(u => {
+                const usernameMatch = u.username ? u.username.toLowerCase().includes(val) : false;
+                const nameMatch = u.name ? u.name.toLowerCase().includes(val) : false;
+                return usernameMatch || nameMatch;
+            });
+            
+            renderAllCards(filtered);
+        }
+
+        // 4. सुधरा हुआ असिंक्रोनस मैच और प्रोफाइल लोडर
+        async function viewProfile(uid) {
+            try {
+                const uDoc = await db.collection("users").doc(uid).get();
+                if (!uDoc.exists) return alert("यूजर का डेटाबेस रिकॉर्ड नहीं मिला!");
+                
+                const u = uDoc.data();
+                const modal = document.getElementById('userModal');
+                const content = document.getElementById('modalContent');
+                const matchBox = document.getElementById('modalMatches');
+
+                content.innerHTML = `
+                    <div class="flex flex-col items-center gap-3">
+                        <img src="${u.photo || 'https://via.placeholder.com/100'}" class="w-24 h-24 rounded-full border-4 border-orange-500 shadow-2xl object-cover" onerror="this.src='https://via.placeholder.com/100'">
+                        <h3 class="text-2xl font-black uppercase">${u.username || 'No Username'}</h3>
+                        <div class="flex gap-4">
+                            <div class="text-center bg-slate-800 px-4 py-2 rounded-2xl border border-slate-700">
+                                <p class="text-[9px] text-gray-500 uppercase">Balance</p>
+                                <p class="text-xl font-black text-orange-500">₹${u.coins || 0}</p>
+                            </div>
+                            <div class="text-center bg-slate-800 px-4 py-2 rounded-2xl border border-slate-700">
+                                <p class="text-[9px] text-gray-500 uppercase">Total Wins</p>
+                                <p class="text-xl font-black text-green-500">${u.wins || 0}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-800/50 p-6 rounded-3xl space-y-3 text-sm">
+                        <p class="flex justify-between"><span class="text-gray-500">FF UID:</span> <span>${u.name || 'Not Provided'}</span></p>
+                        <p class="flex justify-between"><span class="text-gray-500">Phone:</span> <span>${u.phone || 'Not Linked'}</span></p>
+                        <p class="flex justify-between"><span class="text-gray-500">Email:</span> <span class="text-xs text-slate-300">${u.email || 'Not Provided'}</span></p>
+                    </div>
+                `;
+
+                matchBox.innerHTML = "<p class='text-center text-gray-500 text-xs py-4 uppercase tracking-wider animate-pulse'>Loading Matches...</p>";
+                modal.classList.remove('hidden');
+
+                const regSnap = await db.collection("registrations").where("uid", "==", uid).get();
+                matchBox.innerHTML = "";
+                
+                if(regSnap.empty) {
+                    matchBox.innerHTML = "<p class='text-center text-gray-600 text-xs uppercase py-2'>No matches joined yet.</p>";
+                    return;
+                }
+
+                // Modern reliable async handling loop
+                for (const regDoc of regSnap.docs) {
+                    const reg = regDoc.data();
+                    const mDoc = await db.collection("matches").doc(reg.matchId).get();
+                    const m = mDoc.data();
+                    
+                    if(m) {
+                        matchBox.innerHTML += `
+                            <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex justify-between items-center">
+                                <div>
+                                    <p class="text-xs font-black uppercase">${m.title || 'Untitled Match'}</p>
+                                    <p class="text-[9px] text-gray-500">${m.time || 'No Time Mentioned'}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-[9px] text-orange-500 font-bold uppercase">Rank: ${reg.rank || '-'}</p>
+                                    <p class="text-[9px] text-green-500 font-bold uppercase">Kills: ${reg.kills || 0}</p>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+            } catch (err) {
+                console.error("Profile view error: ", err);
+                alert("प्रोफ़ाइल डेटा लोड करने में त्रुटि आई!");
+            }
+        }
+        // 5. बैन/अनबैन फंक्शन
+        function toggleBan(uid, currentStatus) {
+            const newStatus = currentStatus === 'banned' ? 'active' : 'banned';
+            if(confirm(`क्या आप इस यूजर को ${newStatus === 'banned' ? 'BLOCK' : 'UNBLOCK'} करना चाहते हैं?`)) {
+                db.collection("users").doc(uid).update({ status: newStatus })
+                  .then(() => alert("User status updated successfully!"))
+                  .catch(err => alert("त्रुटि: स्टेटस अपडेट नहीं हो सका। " + err.message));
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('userModal').classList.add('hidden');
+        }
+
+        window.onload = fetchUsers;
+    </script>
+</body>
+</html>
